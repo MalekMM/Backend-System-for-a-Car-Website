@@ -4,6 +4,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,6 +22,8 @@ import com.udacity.vehicles.domain.car.Details;
 import com.udacity.vehicles.domain.manufacturer.Manufacturer;
 import com.udacity.vehicles.service.CarService;
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
@@ -52,11 +56,13 @@ public class CarControllerTest {
     @MockBean
     private CarService carService;
 
-    @MockBean
-    private PriceClient priceClient;
+//    @MockBean
+//    private PriceClient priceClient;
+//
+//    @MockBean
+//    private MapsClient mapsClient;
 
-    @MockBean
-    private MapsClient mapsClient;
+    private MediaType CONTENT_TYPE = new MediaType("application", "hal+json", StandardCharsets.UTF_8);
 
     /**
      * Creates pre-requisites for testing, such as an example car.
@@ -91,12 +97,11 @@ public class CarControllerTest {
      */
     @Test
     public void listCars() throws Exception {
-        /**
-         * TODO: Add a test to check that the `get` method works by calling
-         *   the whole list of vehicles. This should utilize the car from `getCar()`
-         *   below (the vehicle will be the first in the list).
-         */
+        mvc.perform(get("/cars").contentType(MediaType.APPLICATION_JSON_UTF8))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(CONTENT_TYPE));
 
+        verify(carService, times(1)).list();
     }
 
     /**
@@ -105,10 +110,14 @@ public class CarControllerTest {
      */
     @Test
     public void findCar() throws Exception {
-        /**
-         * TODO: Add a test to check that the `get` method works by calling
-         *   a vehicle by ID. This should utilize the car from `getCar()` below.
-         */
+        Car car = getCar();
+        Long id = car.getId();
+        mvc.perform(get("/cars/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(CONTENT_TYPE));
+
+        verify(carService, times(1)).findById(id);
+
     }
 
     /**
@@ -117,11 +126,13 @@ public class CarControllerTest {
      */
     @Test
     public void deleteCar() throws Exception {
-        /**
-         * TODO: Add a test to check whether a vehicle is appropriately deleted
-         *   when the `delete` method is called from the Car Controller. This
-         *   should utilize the car from `getCar()` below.
-         */
+        Car car = getCar();
+        Long id = car.getId();
+        mvc.perform(delete("/cars/{id}", id)
+                    .content(json.write(car).getJson()))
+                .andExpect(status().isNoContent());
+
+        verify(carService, times(1)).delete(id);
     }
 
     /**
@@ -130,6 +141,8 @@ public class CarControllerTest {
      */
     private Car getCar() {
         Car car = new Car();
+        // Car is missing an ID
+        car.setId(randomID());
         car.setLocation(new Location(40.730610, -73.935242));
         Details details = new Details();
         Manufacturer manufacturer = new Manufacturer(101, "Chevrolet");
@@ -147,4 +160,16 @@ public class CarControllerTest {
         car.setCondition(Condition.USED);
         return car;
     }
+
+    /**
+     * Creates a random ID
+     * @return a Long between 1 and 19 (included)
+     */
+    public Long randomID() {
+        // generate a random ID between 1 and 19
+        long leftLimit = 1L;
+        long rightLimit = 19L;
+        return leftLimit + (long) (Math.random() * (rightLimit - leftLimit));
+    }
+
 }
